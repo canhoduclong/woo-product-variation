@@ -1,67 +1,93 @@
 jQuery(document).ready(function ($) {
     let selectedAttributes = {};
 
-    // Xử lý khi chọn radio button
-    $('.wcvm-attribute-radio').on('change', function () {
-        let attribute = $(this).closest('.wcvm-attribute').data('attribute');
+    function getSelectedAttributes() {
+        let selectedAttributes = {};
+    
+        // Duyệt qua từng `.wcvm-attribute-wrapper`
+        $('.wcvm-attribute-wrapper').each(function () {
+            let attribute = $(this).data('attribute'); // Lấy tên thuộc tính từ `data-attribute`
+            let selectedOption = $(this).find('input[type="radio"]:checked').val(); // Lấy giá trị của radio đã chọn
+    
+            if (selectedOption) {
+                selectedAttributes[attribute] = selectedOption;
+            }
+        });
+    
+        return selectedAttributes;
+    }
+
+    // Handle parent attribute selection
+    $(document).on('change', '.wcvm-attribute-radio', function () {
+        let parentWrapper = $(this).closest('.wcvm-attribute-wrapper');
+        let parentAttribute = parentWrapper.data('attribute');
+
+        let selectedAttributes = getSelectedAttributes();
+        
+        console.log(selectedAttributes);
+
         let value = $(this).val();
-
-        // Cập nhật giá trị thuộc tính đã chọn
-        selectedAttributes[attribute] = value;
-
-        // Gọi AJAX để cập nhật các thuộc tính liên quan và giá
-        updateAttributesAndPrice();
-    });
-
-    function updateAttributesAndPrice() {
         let productId = $('#wcvm-product-id').val();
 
+        // Update selected attributes
+        selectedAttributes[parentAttribute] = value;
+
+        // Remove all sub-attributes below the current parent
+        parentWrapper.nextAll('.wcvm-attribute-wrapper').remove();
+
+        // Fetch child attributes via AJAX
         $.ajax({
             url: wcvm_ajax.ajax_url,
             type: 'POST',
             data: {
-                action: 'wcvm_get_filtered_attributes',
+                action: 'wcvm_get_child_attributes',
                 product_id: productId,
-                attributes: selectedAttributes,
+                parent_attribute: selectedAttributes,
+               // parent_attribute: parentAttribute,
+                value: value,
                 nonce: wcvm_ajax.nonce,
             },
             success: function (response) {
                 if (response.success) {
-                    let filteredAttributes = response.data.filtered_attributes;
-                    let price = response.data.price;
+                    let subAttributes = response.sub_attributes;
 
-                    // Cập nhật các radio button
-                    $('.wcvm-attribute').each(function () {
-                        let attribute = $(this).data('attribute');
-                        let radios = $(this).find('.wcvm-attribute-radio');
+                    $.each(subAttributes, function (attribute, values) {
+                        let subWrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="attribute_' + attribute + '"></div>');
+                        subWrapper.append('<h4>' + attribute + '</h4>');
 
-                        radios.each(function () {
-                            let value = $(this).val();
-
-                            // Đối với thuộc tính đầu tiên (Màu sắc), không ẩn radio button
-                            if (Object.keys(selectedAttributes).indexOf(attribute) === 0) {
-                                $(this).parent().show();
-                                return;
-                            }
-
-                            // Đối với các thuộc tính khác, chỉ hiển thị các giá trị hợp lệ
-                            if (filteredAttributes[attribute] && filteredAttributes[attribute].includes(value)) {
-                                $(this).parent().show();
-                            } else {
-                                $(this).parent().hide();
-                                $(this).prop('checked', false); // Bỏ chọn radio bị ẩn
-                            }
+                        $.each(values, function (index, value) {
+                            subWrapper.append(
+                                '<label><input type="radio" class="wcvm-attribute-radio" name="' + attribute + '" value="' + value + '">' + value + '</label><br>'
+                            );
                         });
-                    });
 
-                    // Hiển thị giá và kích hoạt nút "Add to Cart"
-                    if (price !== null) {
-                        $('#wcvm-price').text('Price: ' + price + ' USD');
-                        $('.wcvm-add-to-cart').prop('disabled', false);
-                    } else {
-                        $('#wcvm-price').text('');
-                        $('.wcvm-add-to-cart').prop('disabled', true);
-                    }
+                        $('#wcvm-attributes').append(subWrapper);
+                    });
+                }
+            },
+        });
+
+        // Optionally, update price or other details
+        fetchPrice(productId);
+    });
+
+    function fetchPrice(productId) {
+        $.ajax({
+            url: wcvm_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wcvm_get_price',
+                product_id: productId,
+                selected_attributes: selectedAttributes,
+                nonce: wcvm_ajax.nonce,
+            },
+            success: function (response) {
+                if (response.success) {
+                    $('#wcvm-price').text('Price: ' + response.price + ' USD');
+                    $('.wcvm-add-to-cart').prop('disabled', false);
+                } else {
+                    $('#wcvm-price').text('');
+                    $('.wcvm-add-to-cart').prop('disabled', true);
                 }
             },
         });

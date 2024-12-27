@@ -1,25 +1,23 @@
 <?php
 /**
- * Plugin Name: WooCommerce Variation Manager
- * Description: Dynamic product variations with dependent attributes.
+ * Plugin Name: WC Variation Manager
+ * Description: Plugin quản lý các biến thể sản phẩm trong WooCommerce với các thuộc tính cha - con và sử dụng AJAX.
  * Version: 1.0
- * Author: vBrand
+ * Author: Your Name
  */
 
 if (!defined('ABSPATH')) {
-    exit; // Exit if accessed directly.
+    exit; // Exit if accessed directly
 }
 
 // Enqueue scripts and styles
 add_action('wp_enqueue_scripts', 'wcvm_enqueue_scripts');
 function wcvm_enqueue_scripts() {
-    if (is_product()) {
-        wp_enqueue_script('wcvm-ajax', plugin_dir_url(__FILE__) . 'assets/js/wcvm-ajax.js', ['jquery'], '1.0', true);
-        wp_localize_script('wcvm-ajax', 'wcvm_ajax', [
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce'    => wp_create_nonce('wcvm_nonce'),
-        ]);
-    }
+    wp_enqueue_script('wcvm-ajax', plugin_dir_url(__FILE__) . 'assets/js/wcvm-ajax.js', array('jquery'), null, true);
+    wp_localize_script('wcvm-ajax', 'wcvm_ajax', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('wcvm_nonce')
+    ));
 }
 
 // Display attributes dynamically
@@ -32,35 +30,21 @@ function wcvm_display_dynamic_attributes() {
 
         echo '<div id="wcvm-attributes">';
         
-        //echo "<pre>";  print_r($attributes);  echo "</pre>";
-
         foreach ($attributes as $attribute_name => $options) {
-           
+            $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
+            $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
             
-            $attribute_slug     = '';
-            $attribute_label    = '';
-            if (is_object($options) && method_exists($options, 'is_taxonomy') && $options->is_taxonomy()) {
-                // Tạo slug cho thuộc tính
-                $attribute_slug = esc_html('attribute_' . $attribute_name);
-    
-                // Lấy tên hiển thị của thuộc tính
-                $attribute_label = esc_html(wc_attribute_label($attribute_name, $product)); 
-            } elseif (is_array($options)) {
-                // Nếu thuộc tính là custom attribute (mảng giá trị)
-                $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
-                $attribute_label = esc_html($attribute_name);
-            } else {
-                echo 'Không xác định được kiểu thuộc tính: ' . esc_html($attribute_name) . '<br>';
-            }
+            echo '<div class="wcvm-attribute-wrapper" data-attribute="' . esc_attr($attribute_slug) . '">';
+            echo '<h4>' . $attribute_label . '</h4>';
             
-            echo '<div class="wcvm-attribute" data-attribute="' . esc_attr($attribute_slug) . '">'; 
-            echo '<strong>' . $attribute_label . '</strong><br>';
             foreach ($options as $option) {
                 echo '<label>';
                 echo '<input type="radio" class="wcvm-attribute-radio" name="' . $attribute_slug . '" value="' . esc_attr($option) . '"> ';
                 echo esc_html($option);
                 echo '</label><br>';
             }
+            
+            echo '<div class="wcvm-sub-attributes"></div>'; // Placeholder for child attributes
             echo '</div>';
         }
 
@@ -72,75 +56,98 @@ function wcvm_display_dynamic_attributes() {
         echo '<button type="button" class="button wcvm-add-to-cart" disabled>Add to Cart</button>';
     }
 }
-
-// AJAX handler to get filtered attributes and price
-add_action('wp_ajax_wcvm_get_filtered_attributes', 'wcvm_get_filtered_attributes');
-add_action('wp_ajax_nopriv_wcvm_get_filtered_attributes', 'wcvm_get_filtered_attributes');
-function wcvm_get_filtered_attributes() {
+add_action('wp_ajax_wcvm_get_child_attributes', 'wcvm_get_child_attributes');
+add_action('wp_ajax_nopriv_wcvm_get_child_attributes', 'wcvm_get_child_attributes');
+function wcvm_get_child_attributes() {
     check_ajax_referer('wcvm_nonce', 'nonce');
 
-    $product_id = intval($_POST['product_id']);
-
-    /**
-     * Láy thuộc tính chọn
-     */
-    $selected_attributes = isset($_POST['attributes']) ? $_POST['attributes'] : []; 
-
-    /**
-     * Láy thông tin sản phẩm
-     */
-    $product = wc_get_product($product_id); 
-
-    if (!$product || !$product->is_type('variable')) {
-        wp_send_json_error(['message' => 'Invalid product.']);
+    $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
+    //$parent_attribute = isset($_POST['parent_attribute']) ? sanitize_text_field($_POST['parent_attribute']) : '';
+    
+    // Lấy Attributes
+    $template  = isset($_POST['parent_attribute']) ? $_POST['parent_attribute'] : [];
+    if (empty($template )) {
+        wp_send_json_error(['error' => 'No attributes selected.']);
+        return;
     }
+    $keys = array_keys($template ); 
 
-    /**
-     * Lấy các biến thể của sản phẩm
-     */
-    $available_variations = $product->get_available_variations(); 
+    //print_r($template );
 
+    $value = isset($_POST['value']) ? sanitize_text_field($_POST['value']) : '';
 
-    $filtered_attributes = [];
-    $final_price = null;
+    $product = wc_get_product($product_id);
 
-    foreach ($available_variations as $variation) {
-        $variation_attributes = $variation['attributes'];
+    $response = ['success' => false, 'sub_attributes' => []];
+
+    if ($product && $product->is_type('variable')) {
         
-        $is_match = true;
+        $variations = $product->get_available_variations(); 
+        
+        foreach ($variations as $variation) {
+            $attributes = $variation['attributes'];
 
-       /**
-        * Kiểm tra xem thuộc tính chọn có trong danh sách biến thể ( variation ) hay không ?
-        */
-        foreach ($selected_attributes as $key => $value) {
-            if (!isset($variation_attributes[$key]) || $variation_attributes[$key] !== $value) {
-                $is_match = false;
-                break;
-            }
-        }
-
-        if ($is_match) {
-            /**
-             * Lọc thuộc tính của biến thể ( variation ) có thuộc tính = Thuộc tính  được chọn
-             */
-            foreach ($variation_attributes as $key => $value) {
-                if (!isset($filtered_attributes[$key])) {
-                    $filtered_attributes[$key] = [];
-                }
-                if (!in_array($value, $filtered_attributes[$key])) {
-                    $filtered_attributes[$key][] = $value;
+            $isMatch = true; 
+            foreach ($template as $key => $value) {
+                if (!isset($attributes[$key]) || $attributes[$key] !== $value) {
+                    $isMatch = false;
+                    break;
                 }
             }
-            
-            /**
-             * Khi client chọn đủ option thì mới ra được giá của  variable này
-             */
-            if (count($selected_attributes) === count($variation_attributes)) {
-                $final_price = $variation['display_price'];
+
+            if ($isMatch) {
+                foreach ($attributes as $key => $val) {
+                    if (array_key_exists($key, $template)) {
+                        continue;
+                    }
+                    
+                    $key = str_replace('attribute_', '', $key); 
+                    if (!isset($response['sub_attributes'][$key])) {
+                        $response['sub_attributes'][$key] = [];
+                    }
+                    $response['sub_attributes'][$key][] = $val;
+                    
+                }
             }
 
+            // Check if the variation matches the selected parent attribute value
+            /*
+            if (isset($attributes[$parent_attribute]) && $attributes[$parent_attribute] === $value) {
+                foreach ($attributes as $key => $val) {
+                     // Include only child attributes
+                     if ($key !== $parent_attribute) {
+
+                        $key = str_replace('attribute_', '', $key); 
+                   
+                        if (!isset($response['sub_attributes'][$key])) {
+                            $response['sub_attributes'][$key] = [];
+                        }
+                        $response['sub_attributes'][$key][] = $val;
+                    }
+                }
+            }
+            */
+
         }
+
+        foreach ($response['sub_attributes'] as $key => $values) {
+            $response['sub_attributes'][$key] = array_unique($values);
+        }
+
+        $response['success'] = true;
     }
 
-    wp_send_json_success(['filtered_attributes' => $filtered_attributes, 'price' => $final_price]);
+    wp_send_json($response);
+}
+
+// Hàm so khớp dữ liệu
+function matchData($template, $data) {
+    return array_filter($data, function ($item) use ($template) {
+        foreach ($template as $key => $value) {
+            if (!isset($item[$key]) || $item[$key] !== $value) {
+                return false;
+            }
+        }
+        return true;
+    });
 }
