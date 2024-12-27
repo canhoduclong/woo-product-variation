@@ -1,0 +1,30 @@
+.wcvm-attribute {
+    margin-bottom: 20px;
+}
+ 
+.wcvm-attribute-checkbox {
+    margin-right: 10px;
+}
+.wcvm-add-to-cart {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: #0071a1;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+.wcvm-add-to-cart:hover {
+    background: #005880;
+}
+
+
+/*
+.wcvm-attribute label {
+    display: none;
+}
+
+.wcvm-attribute label.show {
+    display: block;
+}
+*/
+
