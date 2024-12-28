@@ -17,14 +17,26 @@ jQuery(document).ready(function ($) {
         return selectedAttributes;
     }
 
+    function reset_price(){
+        $('#wcvm-price').text('');
+        $('.wcvm-add-to-cart').prop('disabled', true);
+    }
+    function reset_all_sub_attribute(){
+        const wrappers = document.querySelectorAll('.wcvm-attribute-wrapper');
+        for (let i = 1; i < wrappers.length; i++) {
+            wrappers[i].remove();
+        }
+    }
     // Handle parent attribute selection
     $(document).on('change', '.wcvm-attribute-radio', function () {
-        let parentWrapper = $(this).closest('.wcvm-attribute-wrapper');
-        let parentAttribute = parentWrapper.data('attribute');
-
-        let selectedAttributes = getSelectedAttributes();
         
-        console.log(selectedAttributes);
+        let wrapper = $(this).closest('.wcvm-attribute-wrapper');
+        if (wrapper.is(':first-child')) { 
+            reset_price();
+            reset_all_sub_attribute();
+        }
+        let parentAttribute = wrapper.data('attribute');
+        let selectedAttributes = getSelectedAttributes();
 
         let value = $(this).val();
         let productId = $('#wcvm-product-id').val();
@@ -33,7 +45,7 @@ jQuery(document).ready(function ($) {
         selectedAttributes[parentAttribute] = value;
 
         // Remove all sub-attributes below the current parent
-        parentWrapper.nextAll('.wcvm-attribute-wrapper').remove();
+        wrapper.nextAll('.wcvm-attribute-wrapper').remove();
 
         // Fetch child attributes via AJAX
         $.ajax({
@@ -52,16 +64,21 @@ jQuery(document).ready(function ($) {
                     let subAttributes = response.sub_attributes;
 
                     $.each(subAttributes, function (attribute, values) {
-                        let subWrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="attribute_' + attribute + '"></div>');
-                        subWrapper.append('<h4>' + attribute + '</h4>');
+                        let selector = `.wcvm-attribute-wrapper[data-attribute="attribute_${attribute}"]`;
 
-                        $.each(values, function (index, value) {
-                            subWrapper.append(
-                                '<label><input type="radio" class="wcvm-attribute-radio" name="' + attribute + '" value="' + value + '">' + value + '</label><br>'
-                            );
-                        });
-
-                        $('#wcvm-attributes').append(subWrapper);
+                        if (document.querySelector(selector)) {  
+                            let oldElement = $(`.wcvm-attribute-wrapper[data-attribute="attribute_${oldAttribute}"]`);
+                            
+                        }else{
+                            let subWrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="attribute_' + attribute + '"></div>');
+                            subWrapper.append('<h4>' + attribute + '</h4>'); 
+                            $.each(values, function (index, value) {
+                                subWrapper.append(
+                                    '<label><input type="radio" class="wcvm-attribute-radio" name="' + attribute + '" value="' + value + '"> ' + value + '</label><br>'
+                                );
+                            }); 
+                            $('#wcvm-attributes').append(subWrapper);
+                        }
                     });
                 }
             },
@@ -72,6 +89,7 @@ jQuery(document).ready(function ($) {
     });
 
     function fetchPrice(productId) {
+        let selectedAttributes = getSelectedAttributes();
         $.ajax({
             url: wcvm_ajax.ajax_url,
             type: 'POST',
@@ -92,4 +110,5 @@ jQuery(document).ready(function ($) {
             },
         });
     }
+    
 });

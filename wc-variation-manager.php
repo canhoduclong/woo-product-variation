@@ -56,6 +56,38 @@ function wcvm_display_dynamic_attributes() {
         echo '<button type="button" class="button wcvm-add-to-cart" disabled>Add to Cart</button>';
     }
 }
+
+
+// AJAX handler to get price and enable "Add to Cart"
+add_action('wp_ajax_wcvm_get_price', 'wcvm_get_price');
+add_action('wp_ajax_nopriv_wcvm_get_price', 'wcvm_get_price');
+function wcvm_get_price() {
+    check_ajax_referer('wcvm_nonce', 'nonce');
+
+    $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
+    $selected_attributes = isset($_POST['selected_attributes']) ? $_POST['selected_attributes'] : [];
+
+    $product = wc_get_product($product_id);
+    $response = ['success' => false, 'price' => null];
+
+    if ($product && $product->is_type('variable')) {
+        $variations = $product->get_available_variations();
+
+        foreach ($variations as $variation) {
+            $attributes = $variation['attributes'];
+            
+            if (array_diff_assoc( $attributes, $selected_attributes) === []) {
+                $response['price'] = $variation['display_price'];
+                $response['success'] = true;
+                break;
+            }
+        }
+    }
+
+    wp_send_json($response);
+}
+
+
 add_action('wp_ajax_wcvm_get_child_attributes', 'wcvm_get_child_attributes');
 add_action('wp_ajax_nopriv_wcvm_get_child_attributes', 'wcvm_get_child_attributes');
 function wcvm_get_child_attributes() {
@@ -70,23 +102,25 @@ function wcvm_get_child_attributes() {
         wp_send_json_error(['error' => 'No attributes selected.']);
         return;
     }
-    $keys = array_keys($template ); 
-
-    //print_r($template );
-
+    
     $value = isset($_POST['value']) ? sanitize_text_field($_POST['value']) : '';
-
     $product = wc_get_product($product_id);
-
     $response = ['success' => false, 'sub_attributes' => []];
-
+    
     if ($product && $product->is_type('variable')) {
-        
-        $variations = $product->get_available_variations(); 
-        
+
+        $attributes = $product->get_variation_attributes();  
+        //print_r($attributes);
+        /*
+        foreach ($attributes as $attribute_name => $options) {
+            $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
+            $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
+        }
+        */
+        $variations = $product->get_available_variations();    
         foreach ($variations as $variation) {
             $attributes = $variation['attributes'];
-
+            
             $isMatch = true; 
             foreach ($template as $key => $value) {
                 if (!isset($attributes[$key]) || $attributes[$key] !== $value) {
@@ -108,35 +142,14 @@ function wcvm_get_child_attributes() {
                     $response['sub_attributes'][$key][] = $val;
                     
                 }
-            }
-
-            // Check if the variation matches the selected parent attribute value
-            /*
-            if (isset($attributes[$parent_attribute]) && $attributes[$parent_attribute] === $value) {
-                foreach ($attributes as $key => $val) {
-                     // Include only child attributes
-                     if ($key !== $parent_attribute) {
-
-                        $key = str_replace('attribute_', '', $key); 
-                   
-                        if (!isset($response['sub_attributes'][$key])) {
-                            $response['sub_attributes'][$key] = [];
-                        }
-                        $response['sub_attributes'][$key][] = $val;
-                    }
-                }
-            }
-            */
-
+            } 
         }
 
         foreach ($response['sub_attributes'] as $key => $values) {
             $response['sub_attributes'][$key] = array_unique($values);
-        }
-
+        } 
         $response['success'] = true;
     }
-
     wp_send_json($response);
 }
 
