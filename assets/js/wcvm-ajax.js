@@ -21,31 +21,36 @@ jQuery(document).ready(function ($) {
         $('#wcvm-price').text('');
         $('.wcvm-add-to-cart').prop('disabled', true);
     }
-    function reset_all_sub_attribute(){
+    function reset_all_attribute(){
         const wrappers = document.querySelectorAll('.wcvm-attribute-wrapper');
-        for (let i = 1; i < wrappers.length; i++) {
+        for (let i = 0; i < wrappers.length; i++) {
             wrappers[i].remove();
         }
     }
     // Handle parent attribute selection
     $(document).on('change', '.wcvm-attribute-radio', function () {
-        
-        let wrapper = $(this).closest('.wcvm-attribute-wrapper');
-        if (wrapper.is(':first-child')) { 
-            reset_price();
-            reset_all_sub_attribute();
-        }
-        let parentAttribute = wrapper.data('attribute');
-        let selectedAttributes = getSelectedAttributes();
 
-        let value = $(this).val();
-        let productId = $('#wcvm-product-id').val();
+        const wrappers = document.querySelectorAll('.wcvm-attribute-wrapper');
+
+        let selectedAttributes = getSelectedAttributes(); 
+
+        let wrapper = $(this).closest('.wcvm-attribute-wrapper');
+        let parentAttribute = wrapper.data('attribute'); 
+        let value = $(this).val(); 
 
         // Update selected attributes
         selectedAttributes[parentAttribute] = value;
+        let productId = $('#wcvm-product-id').val(); 
 
+       
+        if (Object.keys(selectedAttributes).length !== wrappers.length) {
+            reset_price(); 
+        }
+
+        reset_all_attribute();
+        
         // Remove all sub-attributes below the current parent
-        wrapper.nextAll('.wcvm-attribute-wrapper').remove();
+        // wrapper.nextAll('.wcvm-attribute-wrapper').remove();
 
         // Fetch child attributes via AJAX
         $.ajax({
@@ -55,27 +60,36 @@ jQuery(document).ready(function ($) {
                 action: 'wcvm_get_child_attributes',
                 product_id: productId,
                 parent_attribute: selectedAttributes,
-               // parent_attribute: parentAttribute,
-                value: value,
+               // parent_attribute: parentAttribute, 
                 nonce: wcvm_ajax.nonce,
             },
-            success: function (response) {
+            success: function (response) { 
                 if (response.success) {
-                    let subAttributes = response.sub_attributes;
-
-                    $.each(subAttributes, function (attribute, values) {
-                        let selector = `.wcvm-attribute-wrapper[data-attribute="attribute_${attribute}"]`;
-
+                    let subAttributes = response.sub_attributes; 
+                    $.each(subAttributes, function (attribute, values) {     
+                        let selector = `.wcvm-attribute-wrapper[data-attribute="${values.key}"]`; 
+                        let checked = ''; 
+                        for (let key in selectedAttributes) {
+                            if (selectedAttributes.hasOwnProperty(key)) {
+                                let kq = selectedAttributes[key];
+                                if(values.key == key && values.value == kq){
+                                    console.log("Key:", key, "Value:", kq);
+                                    checked = 'checked';
+                                } 
+                            }
+                        }
                         if (document.querySelector(selector)) {  
-                            let oldElement = $(`.wcvm-attribute-wrapper[data-attribute="attribute_${oldAttribute}"]`);
-                            
+                            let oldElement = $(`.wcvm-attribute-wrapper[data-attribute="attribute_${values.key}"]`);
                         }else{
-                            let subWrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="attribute_' + attribute + '"></div>');
-                            subWrapper.append('<h4>' + attribute + '</h4>'); 
+                            let subWrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="' + values.key + '"></div>');
+                            subWrapper.append('<h4>' + values.label + '</h4>'); 
                             $.each(values, function (index, value) {
-                                subWrapper.append(
-                                    '<label><input type="radio" class="wcvm-attribute-radio" name="' + attribute + '" value="' + value + '"> ' + value + '</label><br>'
-                                );
+                                
+                                if(index == 'value'){
+                                    subWrapper.append(
+                                        '<label><input type="radio" class="wcvm-attribute-radio" name="' + values.key + '" value="' + value + '" '+checked+'> ' + value + '</label><br>'
+                                    );
+                                }
                             }); 
                             $('#wcvm-attributes').append(subWrapper);
                         }

@@ -31,6 +31,7 @@ function wcvm_display_dynamic_attributes() {
         echo '<div id="wcvm-attributes">';
         
         foreach ($attributes as $attribute_name => $options) {
+            
             $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
             $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
             
@@ -96,58 +97,59 @@ function wcvm_get_child_attributes() {
     $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
     //$parent_attribute = isset($_POST['parent_attribute']) ? sanitize_text_field($_POST['parent_attribute']) : '';
     
-    // Lấy Attributes
-    $template  = isset($_POST['parent_attribute']) ? $_POST['parent_attribute'] : [];
-    if (empty($template )) {
+    //selected Attribute
+    $selectedAttribute  = isset($_POST['parent_attribute']) ? $_POST['parent_attribute'] : [];
+    if (empty($selectedAttribute )) {
         wp_send_json_error(['error' => 'No attributes selected.']);
         return;
     }
     
-    $value = isset($_POST['value']) ? sanitize_text_field($_POST['value']) : '';
     $product = wc_get_product($product_id);
     $response = ['success' => false, 'sub_attributes' => []];
     
     if ($product && $product->is_type('variable')) {
 
-        $attributes = $product->get_variation_attributes();  
-        //print_r($attributes);
-        /*
-        foreach ($attributes as $attribute_name => $options) {
+        $variation_attributes = $product->get_variation_attributes();
+        $attribute_list = [];
+        foreach ($variation_attributes as $attribute_name => $options) { 
             $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
             $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
+            $attribute_list[$attribute_slug] = $attribute_name; 
         }
-        */
-        $variations = $product->get_available_variations();    
+
+
+        $variations = $product->get_available_variations();  
+
         foreach ($variations as $variation) {
             $attributes = $variation['attributes'];
-            
-            $isMatch = true; 
-            foreach ($template as $key => $value) {
-                if (!isset($attributes[$key]) || $attributes[$key] !== $value) {
-                    $isMatch = false;
-                    break;
+            foreach ($attributes as $keys => $val) {    
+                /*  if (array_key_exists($key, $selectedAttribute)) { continue;   }  */
+                
+                $checked = '';
+                //$keys = str_replace('attribute_', '', $keys);
+
+                if (!isset($response['sub_attributes'][$keys])) {
+                    $response['sub_attributes'][$keys] = [];
                 }
+
+                foreach ($selectedAttribute as $key => $value) {
+                    if (!isset($attributes[$key]) || $attributes[$key] == $value) {
+                        $checked = 'checked';
+                        //break;
+                    }
+                }
+                $response['sub_attributes'][$keys]['checked'] = $checked; 
+                $response['sub_attributes'][$keys]['value'] = $val;
+                $response['sub_attributes'][$keys]['key'] = $keys;
+                $response['sub_attributes'][$keys]['label'] = $attribute_list[$keys];
+                
             }
-
-            if ($isMatch) {
-                foreach ($attributes as $key => $val) {
-                    if (array_key_exists($key, $template)) {
-                        continue;
-                    }
-                    
-                    $key = str_replace('attribute_', '', $key); 
-                    if (!isset($response['sub_attributes'][$key])) {
-                        $response['sub_attributes'][$key] = [];
-                    }
-                    $response['sub_attributes'][$key][] = $val;
-                    
-                }
-            } 
+            
         }
-
+        
         foreach ($response['sub_attributes'] as $key => $values) {
             $response['sub_attributes'][$key] = array_unique($values);
-        } 
+        }  
         $response['success'] = true;
     }
     wp_send_json($response);
