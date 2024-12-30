@@ -88,18 +88,15 @@ function wcvm_get_price() {
     wp_send_json($response);
 }
 
-
 add_action('wp_ajax_wcvm_get_child_attributes', 'wcvm_get_child_attributes');
 add_action('wp_ajax_nopriv_wcvm_get_child_attributes', 'wcvm_get_child_attributes');
 function wcvm_get_child_attributes() {
     check_ajax_referer('wcvm_nonce', 'nonce');
 
-    $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
-    //$parent_attribute = isset($_POST['parent_attribute']) ? sanitize_text_field($_POST['parent_attribute']) : '';
+    $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0; 
+    $selectedAttribute = isset($_POST['parent_attribute']) ? $_POST['parent_attribute'] : [];
     
-    //selected Attribute
-    $selectedAttribute  = isset($_POST['parent_attribute']) ? $_POST['parent_attribute'] : [];
-    if (empty($selectedAttribute )) {
+    if (empty($selectedAttribute)) {
         wp_send_json_error(['error' => 'No attributes selected.']);
         return;
     }
@@ -108,42 +105,55 @@ function wcvm_get_child_attributes() {
     $response = ['success' => false, 'sub_attributes' => []];
     
     if ($product && $product->is_type('variable')) {
-
         $variation_attributes = $product->get_variation_attributes();
-        $attribute_list = [];
-        //  print_r($variation_attributes);
+        $attribute_list = []; 
+
         foreach ($variation_attributes as $attribute_name => $options) { 
             $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
             $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
-            $attribute_list[$attribute_slug] = $attribute_name; 
+            $attribute_list[$attribute_slug] = $attribute_label; 
         }
 
-        $variations = $product->get_available_variations();  
+        // Luôn giữ đầy đủ giá trị của thuộc tính đầu tiên
+        $first_attribute_key = array_key_first($variation_attributes);
+        $first_attribute_slug = 'attribute_' . sanitize_title($first_attribute_key);
+        foreach ($variation_attributes[$first_attribute_key] as $option) {
+            $response['sub_attributes'][$first_attribute_slug][] = [
+                'checked' => isset($selectedAttribute[$first_attribute_slug]) && $selectedAttribute[$first_attribute_slug] == $option ? 'checked' : '',
+                'value'   => $option,
+                'key'     => $first_attribute_slug,
+                'label'   => $attribute_list[$first_attribute_slug]
+            ];
+        }
 
+        // Lọc các thuộc tính còn lại dựa trên `selectedAttribute`
+        $variations = $product->get_available_variations();  
         foreach ($variations as $variation) {
-            $attributes = $variation['attributes']; 
-            print_r($attributes);
-            foreach ($attributes as $keys => $val) { 
-                $isMatch = true;
-                foreach ($selectedAttribute as $att_key => $att_value) {       
-                    if (  $att_key == $att_key  && $val !== $att_value) {
-                        $match = false;
-                        break;
+            $attributes = $variation['attributes'];
+            $isMatch = true;
+
+            foreach ($selectedAttribute as $att_key => $att_value) {       
+                if (isset($attributes[$att_key]) && $attributes[$att_key] !== $att_value) {
+                    $isMatch = false;
+                    break;
+                }
+            } 
+
+            if ($isMatch) {
+                foreach ($attributes as $key => $value) {
+                    if ($key !== $first_attribute_slug) { // Loại bỏ thuộc tính đầu tiên
+                        $response['sub_attributes'][$key][] = [
+                            'checked' => '',
+                            'value'   => $value,
+                            'key'     => $key,
+                            'label'   => $attribute_list[$key] ?? ''
+                        ];
                     }
                 }
-                if($isMatch){
-                    $response['sub_attributes'][$keys][] = [
-                        'checked'   => '',
-                        'value'     => $val,
-                        'key'       => $keys,
-                        'label'     =>  $attribute_list[$keys]
-                    ];
-                }  
             }
         }
 
-        print_r($response['sub_attributes']);
-       
+        // Loại bỏ giá trị trùng lặp
         $result = [];
         foreach ($response['sub_attributes'] as $attributeKey => $attributeGroup) {
             $tempValues = [];
@@ -157,32 +167,24 @@ function wcvm_get_child_attributes() {
             }
         }
         $response['sub_attributes'] = $result;
-        //print_r($response['sub_attributes']);
-        foreach($response['sub_attributes'] as $key => &$value){
-            foreach( $value as $sub_key => &$sub_value){
-                // print_r($sub_value);
-                foreach ($selectedAttribute as $att_key => $att_value) {            
-                    if ( $sub_value['value'] == $att_value &  $sub_value['key'] == $att_key  ) { 
-                        $sub_value['checked'] = 'checked';
-                    }
+
+        // Đánh dấu thuộc tính đã chọn
+        foreach ($response['sub_attributes'] as $key => &$value) {
+            foreach ($value as $sub_key => &$sub_value) { 
+                if (isset($selectedAttribute[$key]) && $sub_value['value'] == $selectedAttribute[$key]) {
+                    $sub_value['checked'] = 'checked';
                 }
             }
-            unset($sub_value); 
+            unset($sub_value);
         }
         unset($value);
-        /*
-        $checked = '';  
-        foreach ($selectedAttribute as $key => $value) {            
-            if ( $attributes[$key] == $value) { 
-                $checked = 'checked';
-            }
-            echo $attributes[$key] .'=='. $value.'-'.$checked.'-----';
-        }
-        */
+
         $response['success'] = true;
     }
+
     wp_send_json($response);
 }
+
 
 // Hàm so khớp dữ liệu
 function matchData($template, $data) {

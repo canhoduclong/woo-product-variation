@@ -30,11 +30,17 @@ jQuery(document).ready(function ($) {
     // Handle parent attribute selection
     $(document).on('change', '.wcvm-attribute-radio', function () {
 
-        const wrappers = document.querySelectorAll('.wcvm-attribute-wrapper');
+        let wrapper = $(this).closest('.wcvm-attribute-wrapper');
+        let wrapperIndex = $('.wcvm-attribute-wrapper').index(wrapper);
+
+        // Kiểm tra nếu wrapper hiện tại là wrapper đầu tiên
+        if (wrapperIndex === 0) {
+            reset_price();
+            reset_all_following_wrappers(wrapperIndex); // Reset tất cả các wrapper phía sau
+        }
 
         let selectedAttributes = getSelectedAttributes(); 
-
-        let wrapper = $(this).closest('.wcvm-attribute-wrapper');
+ 
         let parentAttribute = wrapper.data('attribute'); 
         let value = $(this).val(); 
 
@@ -43,7 +49,7 @@ jQuery(document).ready(function ($) {
         let productId = $('#wcvm-product-id').val(); 
 
        
-        if (Object.keys(selectedAttributes).length !== wrappers.length) {
+        if (Object.keys(selectedAttributes).length !== wrapper.length) {
             reset_price(); 
         }
 
@@ -107,6 +113,12 @@ jQuery(document).ready(function ($) {
         // Optionally, update price or other details
         fetchPrice(productId);
     });
+
+    function reset_all_following_wrappers(startIndex) {
+        const wrappers = $('.wcvm-attribute-wrapper');
+        wrappers.slice(startIndex + 1).remove(); // Xóa tất cả các wrapper sau `startIndex`
+    }
+
 
     function fetchPrice(productId) {
         let selectedAttributes = getSelectedAttributes();
