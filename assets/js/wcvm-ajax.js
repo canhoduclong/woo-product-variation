@@ -39,7 +39,7 @@ jQuery(document).ready(function ($) {
             reset_all_following_wrappers(wrapperIndex); // Reset tất cả các wrapper phía sau
         }
 
-        let selectedAttributes = getSelectedAttributes(); 
+        let selectedAttributes = getSelectedAttributes();  
  
         let parentAttribute = wrapper.data('attribute'); 
         let value = $(this).val(); 
@@ -111,7 +111,7 @@ jQuery(document).ready(function ($) {
         });
 
         // Optionally, update price or other details
-        fetchPrice(productId);
+        fetchPrice(productId,selectedAttributes);
     });
 
     function reset_all_following_wrappers(startIndex) {
@@ -119,8 +119,9 @@ jQuery(document).ready(function ($) {
         wrappers.slice(startIndex + 1).remove(); // Xóa tất cả các wrapper sau `startIndex`
     } 
 
-    function fetchPrice(productId) {
-        let selectedAttributes = getSelectedAttributes();
+    function fetchPrice(productId, selectedAttributes) {
+        //let selectedAttributes = getSelectedAttributes();
+        console.log(selectedAttributes);
         $.ajax({
             url: wcvm_ajax.ajax_url,
             type: 'POST',
@@ -184,7 +185,8 @@ jQuery(document).ready(function ($) {
     // Sự kiện nhấn nút "Reload All"
     $(document).on('click', '#wcvm-reload-all', function () {
         reloadAllAttributes();
+        reset_price(); 
     });
 
-    
+
 });
