@@ -63,39 +63,45 @@ jQuery(document).ready(function ($) {
                // parent_attribute: parentAttribute, 
                 nonce: wcvm_ajax.nonce,
             },
-            success: function (response) { 
+            success: function (response) {
                 if (response.success) {
-                    let subAttributes = response.sub_attributes; 
-                    $.each(subAttributes, function (attribute, values) {     
-                        let selector = `.wcvm-attribute-wrapper[data-attribute="${values.key}"]`; 
-                        let checked = ''; 
-                        for (let key in selectedAttributes) {
-                            if (selectedAttributes.hasOwnProperty(key)) {
-                                let kq = selectedAttributes[key];
-                                if(values.key == key && values.value == kq){
-                                    console.log("Key:", key, "Value:", kq);
-                                    checked = 'checked';
-                                } 
-                            }
-                        }
-                        if (document.querySelector(selector)) {  
-                            let oldElement = $(`.wcvm-attribute-wrapper[data-attribute="attribute_${values.key}"]`);
-                        }else{
-                            let subWrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="' + values.key + '"></div>');
-                            subWrapper.append('<h4>' + values.label + '</h4>'); 
-                            $.each(values, function (index, value) {
-                                
-                                if(index == 'value'){
-                                    subWrapper.append(
-                                        '<label><input type="radio" class="wcvm-attribute-radio" name="' + values.key + '" value="' + value + '" '+checked+'> ' + value + '</label><br>'
-                                    );
-                                }
-                            }); 
+                    let subAttributes = response.sub_attributes;
+            
+                    // Duyệt qua các thuộc tính cha
+                    $.each(subAttributes, function (attributeKey, attributeValues) {
+            
+                        // Kiểm tra xem phần tử có tồn tại trong DOM hay chưa
+                        let selector = `.wcvm-attribute-wrapper[data-attribute="${attributeKey}"]`;
+                        if (document.querySelector(selector)) {
+                            // Nếu phần tử đã tồn tại, xóa hết phần tử con trước khi thêm lại
+                            let existingWrapper = $(selector);
+                            existingWrapper.empty(); // Xóa hết nội dung cũ của phần tử này
+            
+                            // Duyệt qua các thuộc tính con và thêm các radio button vào
+                            $.each(attributeValues, function (index, attribute) {
+                                existingWrapper.append(
+                                    `<label><input type="radio" class="wcvm-attribute-radio" name="${attribute.key}" value="${attribute.value}" ${attribute.checked}> ${attribute.value}</label><br>`
+                                );
+                            });
+                        } else {
+                            // Nếu phần tử chưa tồn tại, tạo mới phần tử .wcvm-attribute-wrapper
+                            let subWrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="' + attributeKey + '"></div>');
+                            subWrapper.append('<h4>' + attributeValues[0].label + '</h4>'); // Dùng nhãn của thuộc tính đầu tiên làm tiêu đề
+                            
+                            // Duyệt qua các thuộc tính con và thêm các radio button vào
+                            $.each(attributeValues, function (index, attribute) {
+                                subWrapper.append(
+                                    `<label><input type="radio" class="wcvm-attribute-radio" name="${attribute.key}" value="${attribute.value}" ${attribute.checked}> ${attribute.value}</label><br>`
+                                );
+                            });
+            
+                            // Thêm vào container chính (ví dụ: #wcvm-attributes)
                             $('#wcvm-attributes').append(subWrapper);
                         }
                     });
                 }
-            },
+            }
+            
         });
 
         // Optionally, update price or other details
