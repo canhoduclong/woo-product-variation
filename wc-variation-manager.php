@@ -118,31 +118,31 @@ function wcvm_get_child_attributes() {
             $attribute_list[$attribute_slug] = $attribute_name; 
         }
 
-
         $variations = $product->get_available_variations();  
 
         foreach ($variations as $variation) {
             $attributes = $variation['attributes']; 
-            foreach ($attributes as $keys => $val) {   
-               
-                $response['sub_attributes'][$keys][] = [
-                    'checked'=> '',
-                    'value' => $val,
-                    'key' => $keys,
-                    'label' =>  $attribute_list[$keys]
-                ];   
-            
-                /*
-                    if (!isset($response['sub_attributes'][$keys])) {
-                        $response['sub_attributes'][$keys][] = [];
-                    }                
-                    $response['sub_attributes'][$keys]['checked'] = $checked;
-                    $response['sub_attributes'][$keys]['value'] = $val;
-                    $response['sub_attributes'][$keys]['key'] = $keys;
-                    $response['sub_attributes'][$keys]['label'] = $attribute_list[$keys];
-                */
+            print_r($attributes);
+            foreach ($attributes as $keys => $val) { 
+                $isMatch = true;
+                foreach ($selectedAttribute as $att_key => $att_value) {       
+                    if (  $att_key == $att_key  && $val !== $att_value) {
+                        $match = false;
+                        break;
+                    }
+                }
+                if($isMatch){
+                    $response['sub_attributes'][$keys][] = [
+                        'checked'   => '',
+                        'value'     => $val,
+                        'key'       => $keys,
+                        'label'     =>  $attribute_list[$keys]
+                    ];
+                }  
             }
         }
+
+        print_r($response['sub_attributes']);
        
         $result = [];
         foreach ($response['sub_attributes'] as $attributeKey => $attributeGroup) {
