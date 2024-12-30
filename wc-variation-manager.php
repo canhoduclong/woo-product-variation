@@ -53,7 +53,8 @@ function wcvm_display_dynamic_attributes() {
 
         // Hidden input for product ID
         echo '<input type="hidden" id="wcvm-product-id" value="' . esc_attr($product->get_id()) . '">';
-        echo '<div id="wcvm-price" style="margin-top: 15px; font-size: 1.2em; font-weight: bold;"></div>';
+        echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Reload All</a>';
+        echo '<div id="wcvm-price" style="margin-top: 15px; font-size: 1.2em; font-weight: bold;"></div>'; 
         echo '<button type="button" class="button wcvm-add-to-cart" disabled>Add to Cart</button>';
     }
 }
@@ -196,4 +197,45 @@ function matchData($template, $data) {
         }
         return true;
     });
+}
+//--- reload all attribute
+add_action('wp_ajax_wcvm_reload_all_attributes', 'wcvm_reload_all_attributes');
+add_action('wp_ajax_nopriv_wcvm_reload_all_attributes', 'wcvm_reload_all_attributes');
+
+function wcvm_reload_all_attributes() {
+    check_ajax_referer('wcvm_nonce', 'nonce');
+
+    $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
+
+    if (!$product_id) {
+        wp_send_json_error(['error' => 'Invalid product ID']);
+        return;
+    }
+
+    $product = wc_get_product($product_id);
+
+    if ($product && $product->is_type('variable')) {
+        $variation_attributes = $product->get_variation_attributes();
+        $available_variations = $product->get_available_variations();
+        $response = ['success' => true, 'attributes' => []];
+
+        foreach ($variation_attributes as $attribute_name => $options) {
+            $attribute_slug = 'attribute_' . sanitize_title($attribute_name);
+            $attribute_label = wc_attribute_label($attribute_name, $product);
+
+            $response['attributes'][$attribute_slug] = [];
+            foreach ($options as $option) {
+                $response['attributes'][$attribute_slug][] = [
+                    'checked' => '',
+                    'value' => $option,
+                    'key' => $attribute_slug,
+                    'label' => $attribute_label,
+                ];
+            }
+        }
+
+        wp_send_json($response);
+    }
+
+    wp_send_json_error(['error' => 'Product is not variable']);
 }

@@ -117,8 +117,7 @@ jQuery(document).ready(function ($) {
     function reset_all_following_wrappers(startIndex) {
         const wrappers = $('.wcvm-attribute-wrapper');
         wrappers.slice(startIndex + 1).remove(); // Xóa tất cả các wrapper sau `startIndex`
-    }
-
+    } 
 
     function fetchPrice(productId) {
         let selectedAttributes = getSelectedAttributes();
@@ -142,5 +141,50 @@ jQuery(document).ready(function ($) {
             },
         });
     }
+    //--- reload all
+
+
+
+    // Hàm lấy lại tất cả các thuộc tính
+    function reloadAllAttributes() {
+        let productId = $('#wcvm-product-id').val();
+
+        // Gửi yêu cầu AJAX để lấy lại toàn bộ thuộc tính
+        $.ajax({
+            url: wcvm_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wcvm_reload_all_attributes',
+                product_id: productId,
+                nonce: wcvm_ajax.nonce,
+            },
+            success: function (response) {
+                if (response.success) {
+                    $('#wcvm-attributes').empty(); // Xóa các thuộc tính hiện tại
+
+                    let attributes = response.attributes;
+                    // Hiển thị lại các thuộc tính
+                    $.each(attributes, function (attributeKey, attributeValues) {
+                        let wrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="' + attributeKey + '"></div>');
+                        wrapper.append('<h4>' + attributeValues[0].label + '</h4>');
+                        $.each(attributeValues, function (index, attribute) {
+                            wrapper.append(
+                                `<label><input type="radio" class="wcvm-attribute-radio" name="${attribute.key}" value="${attribute.value}" ${attribute.checked}> ${attribute.value}</label><br>`
+                            );
+                        });
+                        $('#wcvm-attributes').append(wrapper);
+                    });
+                } else {
+                    alert('Không thể tải lại thuộc tính. Vui lòng thử lại!');
+                }
+            },
+        });
+    }
+
+    // Sự kiện nhấn nút "Reload All"
+    $(document).on('click', '#wcvm-reload-all', function () {
+        reloadAllAttributes();
+    });
+
     
 });
