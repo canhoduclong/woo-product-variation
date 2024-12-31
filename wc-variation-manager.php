@@ -10,6 +10,9 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
+  
+
+
 // Enqueue scripts and styles
 add_action('wp_enqueue_scripts', 'wcvm_enqueue_scripts');
 function wcvm_enqueue_scripts() {
@@ -21,7 +24,7 @@ function wcvm_enqueue_scripts() {
 }
 
 // Display attributes dynamically
-add_action('woocommerce_before_add_to_cart_button', 'wcvm_display_dynamic_attributes');
+add_action('woocommerce_single_product_summary', 'wcvm_display_dynamic_attributes');
 function wcvm_display_dynamic_attributes() {
     global $product;
 
@@ -52,10 +55,11 @@ function wcvm_display_dynamic_attributes() {
         echo '</div>';
 
         // Hidden input for product ID
-        echo '<input type="hidden" id="wcvm-product-id" value="' . esc_attr($product->get_id()) . '">';
-        echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Reload All</a>';
-        echo '<div id="wcvm-price" style="margin-top: 15px; font-size: 1.2em; font-weight: bold;"></div>'; 
+        echo '<input type="hidden" id="product_id" value="' . esc_attr($product->get_id()) . '">';
+        echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Reload All</a> <br />'; 
         echo '<button type="button" class="button wcvm-add-to-cart" disabled>Add to Cart</button>';
+
+        
     }
 }
 

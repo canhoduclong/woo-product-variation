@@ -18,7 +18,7 @@ jQuery(document).ready(function ($) {
     }
 
     function reset_price(){
-        $('#wcvm-price').text('');
+        $('.price').text('');
         $('.wcvm-add-to-cart').prop('disabled', true);
     }
     function reset_all_attribute(){
@@ -46,7 +46,7 @@ jQuery(document).ready(function ($) {
 
         // Update selected attributes
         selectedAttributes[parentAttribute] = value;
-        let productId = $('#wcvm-product-id').val(); 
+        let productId = $('#product_id').val(); 
 
        
         if (Object.keys(selectedAttributes).length !== wrapper.length) {
@@ -65,8 +65,7 @@ jQuery(document).ready(function ($) {
             data: {
                 action: 'wcvm_get_child_attributes',
                 product_id: productId,
-                parent_attribute: selectedAttributes,
-               // parent_attribute: parentAttribute, 
+                parent_attribute: selectedAttributes, 
                 nonce: wcvm_ajax.nonce,
             },
             success: function (response) {
@@ -133,11 +132,11 @@ jQuery(document).ready(function ($) {
             },
             success: function (response) {
                 if (response.success) {
-                    $('#wcvm-price').text('Price: ' + response.price + ' USD');
-                    $('.wcvm-add-to-cart').prop('disabled', false);
+                    $('.price').text('Price: ' + response.price + ' USD');
+                    $('.add-to-cart').prop('disabled', false);
                 } else {
-                    $('#wcvm-price').text('');
-                    $('.wcvm-add-to-cart').prop('disabled', true);
+                    $('.price').text('');
+                    $('.add-to-cart').prop('disabled', true);
                 }
             },
         });
@@ -148,7 +147,8 @@ jQuery(document).ready(function ($) {
 
     // Hàm lấy lại tất cả các thuộc tính
     function reloadAllAttributes() {
-        let productId = $('#wcvm-product-id').val();
+        let productId = $('#product_id').val();
+        let pid = document.getElementById('product_id').value;
 
         // Gửi yêu cầu AJAX để lấy lại toàn bộ thuộc tính
         $.ajax({
@@ -161,9 +161,10 @@ jQuery(document).ready(function ($) {
             },
             success: function (response) {
                 if (response.success) {
-                    $('#wcvm-attributes').empty(); // Xóa các thuộc tính hiện tại
+                    $('#wcvm-attributes').empty();  // Xóa các thuộc tính hiện tại
 
                     let attributes = response.attributes;
+
                     // Hiển thị lại các thuộc tính
                     $.each(attributes, function (attributeKey, attributeValues) {
                         let wrapper = $('<div class="wcvm-attribute-wrapper" data-attribute="' + attributeKey + '"></div>');
@@ -175,8 +176,11 @@ jQuery(document).ready(function ($) {
                         });
                         $('#wcvm-attributes').append(wrapper);
                     });
+                    
                 } else {
+
                     alert('Không thể tải lại thuộc tính. Vui lòng thử lại!');
+
                 }
             },
         });
