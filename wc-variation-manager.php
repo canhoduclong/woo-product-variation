@@ -10,9 +10,6 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
-  
-
-
 // Enqueue scripts and styles
 add_action('wp_enqueue_scripts', 'wcvm_enqueue_scripts');
 function wcvm_enqueue_scripts() {
@@ -27,39 +24,32 @@ function wcvm_enqueue_scripts() {
 add_action('woocommerce_single_product_summary', 'wcvm_display_dynamic_attributes');
 function wcvm_display_dynamic_attributes() {
     global $product;
-
     if ($product && $product->is_type('variable')) {
         $attributes = $product->get_variation_attributes();
-
         echo '<div id="wcvm-attributes">';
-        
         foreach ($attributes as $attribute_name => $options) {
-            
             $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
             $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
-            
             echo '<div class="wcvm-attribute-wrapper" data-attribute="' . esc_attr($attribute_slug) . '">';
             echo '<h4>' . $attribute_label . '</h4>';
-            
             foreach ($options as $option) {
                 echo '<label>';
                 echo '<input type="radio" class="wcvm-attribute-radio" name="' . $attribute_slug . '" value="' . esc_attr($option) . '"> ';
                 echo esc_html($option);
                 echo '</label><br>';
             }
-            
             echo '<div class="wcvm-sub-attributes"></div>'; // Placeholder for child attributes
             echo '</div>';
         }
-
         echo '</div>';
-
         // Hidden input for product ID
-        echo '<input type="hidden" id="product_id" value="' . esc_attr($product->get_id()) . '">';
-        echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Reload All</a> <br />'; 
-        echo '<button type="button" class="button wcvm-add-to-cart" disabled>Add to Cart</button>';
-
-        
+        echo '<label><h4>Số lượng: </h4>';
+        echo '<input type="text" id="quantity" name="quantity" value="1"> ';
+        echo '</label><br>';
+        echo '<input type="hidden" id="product_id" value="'. esc_attr($product->get_id()) .'"><br />';
+        echo '<input type="hidden" id="variation_id" name="variation_id" value="">';  
+        echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Chọn Lại</a> <br />'; 
+        echo '<button type="button" class="button add-to-cart" disabled>THÊM VÀO GIỎ</button>';
     }
 }
 
@@ -74,17 +64,18 @@ function wcvm_get_price() {
     $selected_attributes = isset($_POST['selected_attributes']) ? $_POST['selected_attributes'] : [];
 
     $product = wc_get_product($product_id);
-    $response = ['success' => false, 'price' => null];
+    $response = ['success' => false, 'variation_id'=>null, 'price' => null];
 
     if ($product && $product->is_type('variable')) {
         $variations = $product->get_available_variations();
 
         foreach ($variations as $variation) {
-            $attributes = $variation['attributes'];
-            
+            $attributes = $variation['attributes']; 
             if (array_diff_assoc( $attributes, $selected_attributes) === []) {
                 $response['price'] = $variation['display_price'];
+                $response['variation_id'] = $variation['variation_id'];
                 $response['success'] = true;
+
                 break;
             }
         }
@@ -243,3 +234,36 @@ function wcvm_reload_all_attributes() {
 
     wp_send_json_error(['error' => 'Product is not variable']);
 }
+
+//-- thêm vao gio  hàng
+
+add_action('wp_ajax_wcvm_add_to_cart', 'wcvm_add_to_cart');
+add_action('wp_ajax_nopriv_wcvm_add_to_cart', 'wcvm_add_to_cart');
+
+function wcvm_add_to_cart() {
+    // Kiểm tra nonce để đảm bảo tính bảo mật
+    check_ajax_referer('wcvm_nonce', 'nonce');
+
+    // Lấy các tham số từ AJAX
+    $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
+    $quantity = isset($_POST['quantity']) ? absint($_POST['quantity']) : 1;
+    $variation_id = isset($_POST['variation_id']) ? absint($_POST['variation_id']) : 0;
+    $variation = isset($_POST['variation']) ? $_POST['variation'] : [];
+
+    if ($product_id > 0) {
+        // Thêm sản phẩm vào giỏ hàng
+        $added = WC()->cart->add_to_cart($product_id, $quantity, $variation_id, $variation);
+
+        if ($added) {
+            // Cập nhật lại giỏ hàng
+            WC_AJAX::get_refreshed_fragments();
+        } else {
+            wp_send_json_error(['message' => 'Không thể thêm sản phẩm vào giỏ hàng.']);
+        }
+    } else {
+        wp_send_json_error(['message' => 'Dữ liệu không hợp lệ.']);
+    }
+
+    wp_die();
+}
+
