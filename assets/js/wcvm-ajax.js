@@ -117,11 +117,20 @@ jQuery(document).ready(function ($) {
 
     $(document).on('click', '.add-to-cart', function (e) {
         e.preventDefault();
-
+        
         let button = $(this);
+        
+        /*
         let productId = button.data('product_id');
         let variationId = button.data('variation_id');
         let quantity = button.data('quantity') || 1;
+        */
+
+        let productId = document.querySelector('#product_id').value;
+        let variationId =  document.querySelector('#variation_id').value;
+        let quantity = document.querySelector('#quantity').value || 1;
+
+
         let variation = {}; // Nếu có biến thể, truyền các giá trị ở đây
 
         // Thu thập các giá trị biến thể từ các radio hoặc select
@@ -145,15 +154,17 @@ jQuery(document).ready(function ($) {
                 variation: variation,
                 nonce: wcvm_ajax.nonce,
             },
-            success: function (response) {
+            success: function (response) { 
                 if (response.fragments) {
+                    console.log(response);
                     // Cập nhật giỏ hàng
                     $.each(response.fragments, function (key, value) {
                         $(key).replaceWith(value);
                     });
+                    
+                    updateMinicartOnLoad();
 
-                    // Hiển thị thông báo thành công
-                    alert('Sản phẩm đã được thêm vào giỏ hàng!');
+
                 } else if (response.error) {
                     alert(response.error.message);
                 }
@@ -163,15 +174,80 @@ jQuery(document).ready(function ($) {
             },
         });
     });
+    
+    // Click event to close the minicart
+    $('#close-minicart').on('click', function() {
+        hideMinicart(); 
+    });
 
+    function showMinicart() {
+        // $('#minicart').fadeIn();
+        $('#minicart').addClass('open');
+        $('#close-minicart').addClass('open');
+    }
+
+    // Function to hide minicart
+    function hideMinicart() {
+        //$('#minicart').fadeOut();
+        $('#minicart').removeClass('open');
+        $('#close-minicart').removeClass('open');
+    }
+    // Update minicart content
+    function updateMinicart(cartData) {
+        var itemsHtml = '';
+        //console.log(cartData);
+        cartData.items.forEach(function(item) {
+            itemsHtml += '<div class="product">';
+            itemsHtml += '<div class="product-cart-details">';
+            itemsHtml += '<h4 class="product-title"><a href="' + item.permalink + '">' + item.name + '</a></h4>';
+            itemsHtml += '<span class="cart-product-info">'; 
+            itemsHtml += '<span class="cart-product-qty">' + item.quantity + '</span> x ' + item.price_html;
+            itemsHtml += '</span>';
+            itemsHtml += '</div>';
+            itemsHtml += '<figure class="product-image-container">';
+            itemsHtml += '<a href="' + item.permalink + '" class="product-image">';
+            itemsHtml +=  item.image;
+            itemsHtml += '</a>';
+            itemsHtml += '</figure>';
+            itemsHtml += '<a href="javascript:;" class="btn-remove remove-from-cart" cart_item_key="' + item.cart_item_key + '" title="Remove Product"><i class="icon-close"></i></a>';
+            itemsHtml += '</div>';
+
+        });
+        
+        $('.cart-count').html(cartData.items.length); 
+        $('.cart-txt').html(cartData.subtotal); 
+
+        $('#minicart-items').html(itemsHtml); 
+        $('#minicart-total-count').html(cartData.total_count);
+        $('#minicart-subtotal').html(cartData.subtotal);
+    }
+    // Function to update minicart on page load
+    function updateMinicartOnLoad() {
+        $.ajax({
+            type: 'POST',
+            url: ajax_object.ajax_url,
+            data: {
+                action: 'get_cart_data'
+            },
+            success: function(response) {
+                if (response.success) {
+                    updateMinicart(response.data); 
+                    showMinicart();
+                }
+            }
+        });
+    }
+
+
+
+    
     function reset_all_following_wrappers(startIndex) {
         const wrappers = $('.wcvm-attribute-wrapper');
         wrappers.slice(startIndex + 1).remove(); // Xóa tất cả các wrapper sau `startIndex`
     } 
 
     function fetchPrice(productId, selectedAttributes) {
-        //let selectedAttributes = getSelectedAttributes();
-        console.log(selectedAttributes);
+        //let selectedAttributes = getSelectedAttributes(); 
         $.ajax({
             url: wcvm_ajax.ajax_url,
             type: 'POST',
@@ -182,13 +258,15 @@ jQuery(document).ready(function ($) {
                 nonce: wcvm_ajax.nonce,
             },
             success: function (response) {
-                if (response.success) {
+                if (response.success) { 
                     $('.price').text('Giá: ' + response.price + ' đ');
+                    $('#variation_id').val(response.variation_id); 
                     //$('.add-to-cart').prop('disabled', false);
                     document.querySelector('.add-to-cart').removeAttribute('disabled');
                     
                 } else {
                     $('.price').text('');
+                    $('#variation_id').val('');
                     $('.add-to-cart').prop('disabled', true);
                 }
             },

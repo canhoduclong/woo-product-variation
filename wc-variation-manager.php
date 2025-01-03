@@ -47,10 +47,23 @@ function wcvm_display_dynamic_attributes() {
         echo '<input type="text" id="quantity" name="quantity" value="1"> ';
         echo '</label><br>';
         echo '<input type="hidden" id="product_id" value="'. esc_attr($product->get_id()) .'"><br />';
-        echo '<input type="hidden" id="variation_id" name="variation_id" value="">';  
+        echo '<input type="hidden" id="variation_id" name="variation_id" value="">';
         echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Chọn Lại</a> <br />'; 
         echo '<button type="button" class="button add-to-cart" disabled>THÊM VÀO GIỎ</button>';
+    }elseif($product){
+        echo '  <div class="details-filter-row details-row-size">
+                    <label for="qty">Qty:</label>
+                    <div class="product-details-quantity">
+                        <div class="quantity"> 
+                            <input type="number" id="quantity" class="input-text qty text" name="quantity" value="1" aria-label="Product quantity" size="4" min="1" max="" step="1" placeholder="" inputmode="numeric" autocomplete="off" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+                <div class="product-details-action">
+                    <button  name="add-to-cart" value="14" class="btn-product btn-cart add_to_cart button alt">Add to cart</button>
+                </div>';
     }
+    
 }
 
 
