@@ -20,37 +20,109 @@ function wcvm_enqueue_scripts() {
     ));
 }
 
+// prcie label
+function custom_price_label( $price, $product ) {
+    if ( $product->is_type( 'simple' ) ) {
+        return '<span class="custom-label">Giá bán: </span> ' . $price;
+    }
+    return $price;
+}
+
+ 
+
+
 // Display attributes dynamically
 add_action('woocommerce_single_product_summary', 'wcvm_display_dynamic_attributes');
 function wcvm_display_dynamic_attributes() {
     global $product;
-    if ($product && $product->is_type('variable')) {
-        $attributes = $product->get_variation_attributes();
-        echo '<div id="wcvm-attributes">';
-        foreach ($attributes as $attribute_name => $options) {
-            $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
-            $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
-            echo '<div class="wcvm-attribute-wrapper" data-attribute="' . esc_attr($attribute_slug) . '">';
-            echo '<h4>' . $attribute_label . '</h4>';
-            foreach ($options as $option) {
-                echo '<label>';
-                echo '<input type="radio" class="wcvm-attribute-radio" name="' . $attribute_slug . '" value="' . esc_attr($option) . '"> ';
-                echo esc_html($option);
-                echo '</label><br>';
+    if ($product) {
+
+        //--- for product variable 
+        if( $product->is_type('variable')){
+            $attributes = $product->get_variation_attributes();
+            echo '<div id="wcvm-attributes">';
+            foreach ($attributes as $attribute_name => $options) {
+                $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
+                $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
+                echo '<div class="wcvm-attribute-wrapper" data-attribute="' . esc_attr($attribute_slug) . '">';
+                echo '<h4>' . $attribute_label . '</h4>';
+                foreach ($options as $option) {
+                    echo '<label>';
+                    echo '<input type="radio" class="wcvm-attribute-radio" name="' . $attribute_slug . '" value="' . esc_attr($option) . '"> ';
+                    echo esc_html($option);
+                    echo '</label><br>';
+                }
+                echo '<div class="wcvm-sub-attributes"></div>'; // Placeholder for child attributes
+                echo '</div>';
             }
-            echo '<div class="wcvm-sub-attributes"></div>'; // Placeholder for child attributes
             echo '</div>';
+            // Hidden input for product ID
+            //echo '<label><h4>Số lượng: </h4>'; echo '<input type="text" id="quantity" name="quantity" value="1"> ';  echo '</label><br>';
+            echo '<input type="hidden" id="product_id" value="'. esc_attr($product->get_id()) .'"><br />';
+            echo '<input type="hidden" id="variation_id" name="variation_id" value="">';
+            echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Chọn Lại</a> <br />'; 
+            echo '<button type="button" class="button add-to-cart" disabled>THÊM VÀO GIỎ</button>';
         }
-        echo '</div>';
-        // Hidden input for product ID
-        echo '<label><h4>Số lượng: </h4>';
-        echo '<input type="text" id="quantity" name="quantity" value="1"> ';
-        echo '</label><br>';
-        echo '<input type="hidden" id="product_id" value="'. esc_attr($product->get_id()) .'"><br />';
-        echo '<input type="hidden" id="variation_id" name="variation_id" value="">';
-        echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Chọn Lại</a> <br />'; 
-        echo '<button type="button" class="button add-to-cart" disabled>THÊM VÀO GIỎ</button>';
-    }elseif($product){
+    }
+    
+    if($product->is_type('simple')) {
+       // Get all attributes
+        
+        $attributes = $product->get_attributes();
+        
+        
+        // Loop through attributes
+        foreach ( $attributes as $attribute_name => $attribute ) {
+             
+            if ( $attribute->is_taxonomy() ) {
+                // Get the taxonomy terms
+                $terms = wc_get_product_terms( $product->get_id(), $attribute_name, [ 'fields' => 'all' ] );
+    
+                // Display attribute name
+                $attribute_label = wc_attribute_label( $attribute_name, $product );
+                echo '<div class="product-attribute">';
+                echo '<strong>' . esc_html( $attribute_label ) . '</strong>';
+    
+                // Display options as radio buttons
+                if ( ! empty( $terms ) ) {
+                    foreach ( $terms as $term ) {
+                        $option_value = esc_html( $term->name );
+                        $option_id = sanitize_title( $attribute_name . '_' . $term->slug );
+    
+                        echo '<div class="attribute-option">';
+                        echo '<input type="radio" id="' . esc_attr( $option_id ) . '" name="' . esc_attr( $attribute_name ) . '" value="' . esc_attr( $term->slug ) . '">';
+                        echo '<label for="' . esc_attr( $option_id ) . '">' . esc_html( $option_value ) . '</label>';
+                        echo '</div>';
+                    }
+                }
+                echo '</div>';
+            } else {
+
+                // Get attribute label and options
+                $attribute_label = wc_attribute_label( $attribute_name, $product );
+                $options = $attribute->get_options(); // Array of terms or values
+
+                // Display attribute name
+                echo '<div class="product-attribute">';
+                echo '<strong>' . esc_html( $attribute_label ) . '</strong>';
+
+                // Display options as radio buttons
+                if ( ! empty( $options ) ) {
+                    foreach ( $options as $option ) {
+                        $option_value = esc_html( $option );
+                        $option_id = sanitize_title( $attribute_name . '_' . $option_value );
+
+                        echo '<div class="attribute-option">';
+                        echo '<input type="radio" id="' . $option_id . '" name="' . esc_attr( $attribute_name ) . '" value="' . $option_value . '">';
+                        echo '<label for="' . $option_id . '">' . $option_value . '</label>';
+                        echo '</div>';
+                    }
+                }
+
+                echo '</div>';
+            }
+        }
+        /*
         echo '  <div class="details-filter-row details-row-size">
                     <label for="qty">Qty:</label>
                     <div class="product-details-quantity">
@@ -62,12 +134,26 @@ function wcvm_display_dynamic_attributes() {
                 <div class="product-details-action">
                     <button  name="add-to-cart" value="14" class="btn-product btn-cart add_to_cart button alt">Add to cart</button>
                 </div>';
+                */
     }
     
 }
 
+// Hàm so khớp dữ liệu
+function matchData($template, $data) {
+    return array_filter($data, function ($item) use ($template) {
+        foreach ($template as $key => $value) {
+            if (!isset($item[$key]) || $item[$key] !== $value) {
+                return false;
+            }
+        }
+        return true;
+    });
+}
 
-// AJAX handler to get price and enable "Add to Cart"
+/**
+ * AJAX handler to get price and enable "Add to Cart"
+ * */ 
 add_action('wp_ajax_wcvm_get_price', 'wcvm_get_price');
 add_action('wp_ajax_nopriv_wcvm_get_price', 'wcvm_get_price');
 function wcvm_get_price() {
@@ -96,7 +182,9 @@ function wcvm_get_price() {
 
     wp_send_json($response);
 }
-
+/**
+ * Ajax get All Attributes for products
+ */
 add_action('wp_ajax_wcvm_get_child_attributes', 'wcvm_get_child_attributes');
 add_action('wp_ajax_nopriv_wcvm_get_child_attributes', 'wcvm_get_child_attributes');
 function wcvm_get_child_attributes() {
@@ -113,103 +201,126 @@ function wcvm_get_child_attributes() {
     $product = wc_get_product($product_id);
     $response = ['success' => false, 'sub_attributes' => []];
     
-    if ($product && $product->is_type('variable')) {
-        $variation_attributes = $product->get_variation_attributes();
-        $attribute_list = []; 
+    if ($product){
+            
+        if ($product->is_type( ['variable'])) {
+            $variation_attributes = $product->get_variation_attributes();
+            $attribute_list = []; 
 
-        foreach ($variation_attributes as $attribute_name => $options) { 
-            $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
-            $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
-            $attribute_list[$attribute_slug] = $attribute_label; 
-        }
+            foreach ($variation_attributes as $attribute_name => $options) { 
+                $attribute_slug = esc_html('attribute_' . sanitize_title($attribute_name));
+                $attribute_label = esc_html(wc_attribute_label($attribute_name, $product));
+                $attribute_list[$attribute_slug] = $attribute_label; 
+            }
 
-        // Luôn giữ đầy đủ giá trị của thuộc tính đầu tiên
-        $first_attribute_key = array_key_first($variation_attributes);
-        $first_attribute_slug = 'attribute_' . sanitize_title($first_attribute_key);
-        foreach ($variation_attributes[$first_attribute_key] as $option) {
-            $response['sub_attributes'][$first_attribute_slug][] = [
-                'checked' => isset($selectedAttribute[$first_attribute_slug]) && $selectedAttribute[$first_attribute_slug] == $option ? 'checked' : '',
-                'value'   => $option,
-                'key'     => $first_attribute_slug,
-                'label'   => $attribute_list[$first_attribute_slug]
-            ];
-        }
+            // Luôn giữ đầy đủ giá trị của thuộc tính đầu tiên
+            $first_attribute_key = array_key_first($variation_attributes);
+            $first_attribute_slug = 'attribute_' . sanitize_title($first_attribute_key);
+            foreach ($variation_attributes[$first_attribute_key] as $option) {
+                $response['sub_attributes'][$first_attribute_slug][] = [
+                    'checked' => isset($selectedAttribute[$first_attribute_slug]) && $selectedAttribute[$first_attribute_slug] == $option ? 'checked' : '',
+                    'value'   => $option,
+                    'key'     => $first_attribute_slug,
+                    'label'   => $attribute_list[$first_attribute_slug]
+                ];
+            }
 
-        // Lọc các thuộc tính còn lại dựa trên `selectedAttribute`
-        $variations = $product->get_available_variations();  
-        foreach ($variations as $variation) {
-            $attributes = $variation['attributes'];
-            $isMatch = true;
+            // Lọc các thuộc tính còn lại dựa trên `selectedAttribute`
+            $variations = $product->get_available_variations();  
+            foreach ($variations as $variation) {
+                $attributes = $variation['attributes'];
+                $isMatch = true;
 
-            foreach ($selectedAttribute as $att_key => $att_value) {       
-                if (isset($attributes[$att_key]) && $attributes[$att_key] !== $att_value) {
-                    $isMatch = false;
-                    break;
-                }
-            } 
+                foreach ($selectedAttribute as $att_key => $att_value) {       
+                    if (isset($attributes[$att_key]) && $attributes[$att_key] !== $att_value) {
+                        $isMatch = false;
+                        break;
+                    }
+                } 
 
-            if ($isMatch) {
-                foreach ($attributes as $key => $value) {
-                    if ($key !== $first_attribute_slug) { // Loại bỏ thuộc tính đầu tiên
-                        $response['sub_attributes'][$key][] = [
-                            'checked' => '',
-                            'value'   => $value,
-                            'key'     => $key,
-                            'label'   => $attribute_list[$key] ?? ''
-                        ];
+                if ($isMatch) {
+                    foreach ($attributes as $key => $value) {
+                        if ($key !== $first_attribute_slug) { // Loại bỏ thuộc tính đầu tiên
+                            $response['sub_attributes'][$key][] = [
+                                'checked' => '',
+                                'value'   => $value,
+                                'key'     => $key,
+                                'label'   => $attribute_list[$key] ?? ''
+                            ];
+                        }
                     }
                 }
             }
-        }
 
-        // Loại bỏ giá trị trùng lặp
-        $result = [];
-        foreach ($response['sub_attributes'] as $attributeKey => $attributeGroup) {
-            $tempValues = [];
-            $result[$attributeKey] = [];
-        
-            foreach ($attributeGroup as $attribute) {
-                if (!in_array($attribute['value'], $tempValues)) {
-                    $result[$attributeKey][] = $attribute;
-                    $tempValues[] = $attribute['value'];
+            // Loại bỏ giá trị trùng lặp
+            $result = [];
+            foreach ($response['sub_attributes'] as $attributeKey => $attributeGroup) {
+                $tempValues = [];
+                $result[$attributeKey] = [];
+            
+                foreach ($attributeGroup as $attribute) {
+                    if (!in_array($attribute['value'], $tempValues)) {
+                        $result[$attributeKey][] = $attribute;
+                        $tempValues[] = $attribute['value'];
+                    }
                 }
             }
-        }
-        $response['sub_attributes'] = $result;
+            $response['sub_attributes'] = $result;
 
-        // Đánh dấu thuộc tính đã chọn
-        foreach ($response['sub_attributes'] as $key => &$value) {
-            foreach ($value as $sub_key => &$sub_value) { 
-                if (isset($selectedAttribute[$key]) && $sub_value['value'] == $selectedAttribute[$key]) {
-                    $sub_value['checked'] = 'checked';
+            // Đánh dấu thuộc tính đã chọn
+            foreach ($response['sub_attributes'] as $key => &$value) {
+                foreach ($value as $sub_key => &$sub_value) { 
+                    if (isset($selectedAttribute[$key]) && $sub_value['value'] == $selectedAttribute[$key]) {
+                        $sub_value['checked'] = 'checked';
+                    }
                 }
+                unset($sub_value);
             }
-            unset($sub_value);
-        }
-        unset($value);
+            unset($value);
+            $response['success'] = true;
 
-        $response['success'] = true;
+        }
+         
+
+        if($product->is_type('simple')) { 
+            // Get all attributes
+            $attributes = $product->get_attributes();
+
+            // Loop through attributes
+            foreach ( $attributes as $attribute_name => $attribute ) {
+                // Get attribute label and options
+                $attribute_label = wc_attribute_label( $attribute_name, $product );
+                $options = $attribute->get_options(); // Array of terms or values
+
+                // Display attribute name
+                echo '<div class="product-attribute">';
+                echo '<strong>' . esc_html( $attribute_label ) . '</strong>';
+
+                // Display options as radio buttons
+                if ( ! empty( $options ) ) {
+                    foreach ( $options as $option ) {
+                        $option_value = esc_html( $option );
+                        $option_id = sanitize_title( $attribute_name . '_' . $option_value );
+
+                        echo '<div class="attribute-option">';
+                        echo '<input type="radio" id="' . $option_id . '" name="' . esc_attr( $attribute_name ) . '" value="' . $option_value . '">';
+                        echo '<label for="' . $option_id . '">' . $option_value . '</label>';
+                        echo '</div>';
+                    }
+                }
+
+                echo '</div>';
+            }
+        }
+
     }
 
     wp_send_json($response);
 }
 
-
-// Hàm so khớp dữ liệu
-function matchData($template, $data) {
-    return array_filter($data, function ($item) use ($template) {
-        foreach ($template as $key => $value) {
-            if (!isset($item[$key]) || $item[$key] !== $value) {
-                return false;
-            }
-        }
-        return true;
-    });
-}
 //--- reload all attribute
 add_action('wp_ajax_wcvm_reload_all_attributes', 'wcvm_reload_all_attributes');
 add_action('wp_ajax_nopriv_wcvm_reload_all_attributes', 'wcvm_reload_all_attributes');
-
 function wcvm_reload_all_attributes() {
     check_ajax_referer('wcvm_nonce', 'nonce');
 
@@ -248,11 +359,11 @@ function wcvm_reload_all_attributes() {
     wp_send_json_error(['error' => 'Product is not variable']);
 }
 
-//-- thêm vao gio  hàng
-
+/**
+ * ----- Add to cart events
+ */
 add_action('wp_ajax_wcvm_add_to_cart', 'wcvm_add_to_cart');
 add_action('wp_ajax_nopriv_wcvm_add_to_cart', 'wcvm_add_to_cart');
-
 function wcvm_add_to_cart() {
     // Kiểm tra nonce để đảm bảo tính bảo mật
     check_ajax_referer('wcvm_nonce', 'nonce');
@@ -276,7 +387,6 @@ function wcvm_add_to_cart() {
     } else {
         wp_send_json_error(['message' => 'Dữ liệu không hợp lệ.']);
     }
-
     wp_die();
 }
 
