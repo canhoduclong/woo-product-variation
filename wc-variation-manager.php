@@ -56,12 +56,14 @@ function wcvm_display_dynamic_attributes() {
                 echo '</div>';
             }
             echo '</div>';
+
             // Hidden input for product ID
-            //echo '<label><h4>Số lượng: </h4>'; echo '<input type="text" id="quantity" name="quantity" value="1"> ';  echo '</label><br>';
-            echo '<input type="hidden" id="product_id" value="'. esc_attr($product->get_id()) .'"><br />';
-            echo '<input type="hidden" id="variation_id" name="variation_id" value="">';
-            echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Chọn Lại</a> <br />'; 
-            echo '<button type="button" class="button add-to-cart" disabled>THÊM VÀO GIỎ</button>';
+                echo '<label><h4>Số lượng: </h4><input type="text" id="quantity" name="quantity" value="1"></label><br>'; 
+                echo '<input type="hidden" id="product_id" value="'. esc_attr($product->get_id()) .'"><br />';
+                echo '<input type="hidden" id="variation_id" name="variation_id" value="">';
+                echo '<a id="wcvm-reload-all" class="button" href="javascript:void(0)">Chọn Lại</a> <br />'; 
+                echo '<button type="button" class="button add-to-cart" disabled>THÊM VÀO GIỎ</button>';
+            
         }
     }
     
